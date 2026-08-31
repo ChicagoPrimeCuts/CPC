@@ -1541,6 +1541,7 @@
   const spinBtn = document.getElementById('spinWheelBtn');
   const spinResult = document.getElementById('spinResult');
   let hasSpun = false;
+  let wonPrize = null;
   spinBtn.addEventListener('click', () => {
     if(hasSpun) return;
     hasSpun = true;
@@ -1556,8 +1557,10 @@
     wheelEl.style.transform = `rotate(${finalRotation}deg)`;
     setTimeout(() => {
       const prize = wheelPrizes[targetIndex];
-      spinResult.textContent = `\uD83C\uDF89 You won: ${prize}! Mention it when you call to claim it.`;
+      wonPrize = prize;
+      spinResult.textContent = `\uD83C\uDF89 You won: ${prize}! It'll be added to your order below \u2014 scroll down to send it in.`;
       spinBtn.textContent = 'Prize Locked In';
+      if(typeof updateOrderSummary === 'function') updateOrderSummary();
     }, 4300);
   });
 
@@ -1615,7 +1618,11 @@
       linesEl.innerHTML = '<div class="order-empty">No items selected yet \u2014 set a quantity above.</div>';
       totalEl.style.display = 'none';
     } else {
-      linesEl.innerHTML = lines.map(l => `<div class="order-line"><span>${l.qty} \u00d7 ${l.name}</span><span>$${(l.price*l.qty).toLocaleString()}</span></div>`).join('');
+      let html = lines.map(l => `<div class="order-line"><span>${l.qty} \u00d7 ${l.name}</span><span>$${(l.price*l.qty).toLocaleString()}</span></div>`).join('');
+      if(wonPrize){
+        html += `<div class="order-line"><span>1 \u00d7 ${wonPrize} (Spin &amp; Win)</span><span>Free</span></div>`;
+      }
+      linesEl.innerHTML = html;
       totalAmountEl.textContent = '$' + total.toLocaleString();
       totalEl.style.display = 'flex';
     }
@@ -1648,7 +1655,8 @@
       }
       let total = 0;
       const itemsText = lines.map(l => { total += l.price*l.qty; return `${l.qty}x ${l.name}`; }).join(', ');
-      const msg = `Hi, this is ${customerName}. I'd like to order from Chicago Prime Cuts: ${itemsText}. Estimated total $${total.toLocaleString()}.`;
+      const prizeText = wonPrize ? ` Plus my Spin & Win prize: ${wonPrize}.` : '';
+      const msg = `Hi, this is ${customerName}. I'd like to order from Chicago Prime Cuts: ${itemsText}. Estimated total $${total.toLocaleString()}.${prizeText}`;
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
       const sep = isIOS ? '&' : '?';
       window.location.href = `sms:7083149794${sep}body=${encodeURIComponent(msg)}`;
