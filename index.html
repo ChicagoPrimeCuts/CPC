@@ -629,7 +629,7 @@
     font-family:'Space Mono', monospace;
     font-size:0.78rem;
     color:#8a8578;
-    margin:-12px 0 24px;
+    margin:32px 0 24px;
   }
 
   /* ---------- SPIN & WIN ---------- */
@@ -786,6 +786,57 @@
     color:var(--cream-dim);
     text-align:center;
   }
+  .order-summary{
+    margin-top:32px;
+    background:var(--navy-2);
+    border:1px solid rgba(63,168,220,0.3);
+    border-radius:10px;
+    padding:22px 26px;
+  }
+  .order-summary h4{font-family:'Bebas Neue', sans-serif; font-size:1.3rem; color:var(--cream); letter-spacing:0.02em; margin-bottom:12px;}
+  .order-line{
+    display:flex; justify-content:space-between;
+    font-family:'Space Mono', monospace; font-size:0.85rem;
+    color:var(--cream-dim);
+    padding:6px 0;
+    border-bottom:1px solid rgba(243,238,226,0.1);
+  }
+  .order-line:last-of-type{border-bottom:none;}
+  .order-empty{font-family:'Space Mono', monospace; font-size:0.85rem; color:var(--cream-dim); opacity:0.6;}
+  .order-total{
+    display:flex; justify-content:space-between;
+    font-family:'Bebas Neue', sans-serif; font-size:1.15rem;
+    color:var(--cream);
+    margin-top:12px; padding-top:12px;
+    border-top:1px solid rgba(63,168,220,0.3);
+  }
+  .order-name{margin-top:18px;}
+  .order-name label{display:block; font-family:'Space Mono', monospace; font-size:0.78rem; color:var(--cream-dim); letter-spacing:0.05em; margin-bottom:6px;}
+  .order-name input{
+    width:100%;
+    background:var(--navy);
+    border:1px solid rgba(63,168,220,0.35);
+    border-radius:6px;
+    padding:12px 14px;
+    font-family:'Work Sans', sans-serif;
+    font-size:0.95rem;
+    color:var(--cream);
+  }
+  .order-name input::placeholder{color:rgba(243,238,226,0.4);}
+  .order-name input:focus{outline:none; border-color:var(--flag-blue);}
+  .order-actions{margin-top:20px; display:flex; justify-content:center;}
+  .order-confirm{
+    display:none;
+    margin-top:32px;
+    background:rgba(63,168,220,0.1);
+    border:1px solid rgba(63,168,220,0.4);
+    border-radius:10px;
+    padding:24px 26px;
+    text-align:center;
+  }
+  .order-confirm.show{display:block;}
+  .order-confirm h4{font-family:'Bebas Neue', sans-serif; font-size:1.4rem; color:var(--cream); margin-bottom:8px; letter-spacing:0.02em;}
+  .order-confirm p{font-family:'Space Mono', monospace; font-size:0.85rem; color:var(--cream-dim);}
 
   /* ---------- TESTIMONIALS ---------- */
   .testimonials{background:var(--cream);}
@@ -1157,7 +1208,23 @@
         </div>
       </div>
     </div>
-    <div class="picker-note">Ready to lock in your order? Call the truck direct at 708-314-9794.</div>
+    <div class="order-summary">
+      <h4>Your Order</h4>
+      <div id="orderLines"><div class="order-empty">No items selected yet &mdash; set a quantity above.</div></div>
+      <div class="order-total" id="orderTotal" style="display:none;"><span>Estimated Total</span><span id="orderTotalAmount">$0</span></div>
+      <div class="order-name">
+        <label for="orderName">Your Name</label>
+        <input type="text" id="orderName" placeholder="So Alonzo knows who's texting">
+      </div>
+      <div class="order-actions">
+        <button type="button" class="btn btn-primary" id="sendOrderBtn">Send My Order</button>
+      </div>
+    </div>
+    <div class="order-confirm" id="orderConfirm">
+      <h4>Order Sent</h4>
+      <p>Next step: Chicago Prime Cuts will contact you to confirm your order and pickup time.<br>Questions in the meantime? Call 708-314-9794.</p>
+    </div>
+    <div class="picker-note">Prefer to skip the form? Call the truck direct at 708-314-9794.</div>
   </div>
 </section>
 
@@ -1524,6 +1591,71 @@
       qtyEl.textContent = v;
     });
   });
+
+  // ---- Live order summary + send-by-text ----
+  function updateOrderSummary(){
+    const lines = [];
+    let total = 0;
+    document.querySelectorAll('.picker-card').forEach(card => {
+      const qty = parseInt(card.querySelector('.picker-qty').textContent, 10) || 0;
+      if(qty <= 0) return;
+      const select = card.querySelector('.picker-select');
+      const optText = select.options[select.selectedIndex].textContent;
+      const parts = optText.split('\u2014');
+      const name = parts[0].trim();
+      const priceMatch = optText.match(/\$([0-9,]+)/);
+      const price = priceMatch ? parseInt(priceMatch[1].replace(/,/g, ''), 10) : 0;
+      total += price * qty;
+      lines.push({name, qty, price});
+    });
+    const linesEl = document.getElementById('orderLines');
+    const totalEl = document.getElementById('orderTotal');
+    const totalAmountEl = document.getElementById('orderTotalAmount');
+    if(lines.length === 0){
+      linesEl.innerHTML = '<div class="order-empty">No items selected yet \u2014 set a quantity above.</div>';
+      totalEl.style.display = 'none';
+    } else {
+      linesEl.innerHTML = lines.map(l => `<div class="order-line"><span>${l.qty} \u00d7 ${l.name}</span><span>$${(l.price*l.qty).toLocaleString()}</span></div>`).join('');
+      totalAmountEl.textContent = '$' + total.toLocaleString();
+      totalEl.style.display = 'flex';
+    }
+    return lines;
+  }
+  document.querySelectorAll('.picker-card').forEach(card => {
+    card.querySelector('.qty-minus').addEventListener('click', updateOrderSummary);
+    card.querySelector('.qty-plus').addEventListener('click', updateOrderSummary);
+    card.querySelector('.picker-select').addEventListener('change', updateOrderSummary);
+  });
+  updateOrderSummary();
+
+  const sendOrderBtn = document.getElementById('sendOrderBtn');
+  const orderConfirm = document.getElementById('orderConfirm');
+  if(sendOrderBtn){
+    sendOrderBtn.addEventListener('click', () => {
+      const lines = updateOrderSummary();
+      const nameInput = document.getElementById('orderName');
+      const customerName = nameInput.value.trim();
+      if(lines.length === 0){
+        sendOrderBtn.textContent = 'Pick a quantity first';
+        setTimeout(() => { sendOrderBtn.textContent = 'Send My Order'; }, 1800);
+        return;
+      }
+      if(customerName === ''){
+        sendOrderBtn.textContent = 'Add your name first';
+        nameInput.focus();
+        setTimeout(() => { sendOrderBtn.textContent = 'Send My Order'; }, 1800);
+        return;
+      }
+      let total = 0;
+      const itemsText = lines.map(l => { total += l.price*l.qty; return `${l.qty}x ${l.name}`; }).join(', ');
+      const msg = `Hi, this is ${customerName}. I'd like to order from Chicago Prime Cuts: ${itemsText}. Estimated total $${total.toLocaleString()}.`;
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const sep = isIOS ? '&' : '?';
+      window.location.href = `sms:7083149794${sep}body=${encodeURIComponent(msg)}`;
+      orderConfirm.classList.add('show');
+      orderConfirm.scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  }
 
   // ---- Photo gallery carousel ----
   const galleryTrack = document.getElementById('galleryTrack');
